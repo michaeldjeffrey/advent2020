@@ -1,7 +1,7 @@
-advent2020
+day1
 =====
 
-An OTP application
+An OTP library
 
 Build
 -----
