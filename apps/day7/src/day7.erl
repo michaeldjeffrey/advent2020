@@ -1,5 +1,5 @@
 -module(day7).
--compile(export_all).
+
 -export([part1/0, part2/0]).
 
 part1() ->
