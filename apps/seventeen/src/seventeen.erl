@@ -1,6 +1,6 @@
 -module(seventeen).
--compile(export_all).
--export([]).
+
+-export([part1/1, part2/1]).
 
 -define(ACTIVE, 1).
 -define(INACTIVE, 0).
@@ -32,20 +32,14 @@ get_neighbor_coords({X, Y, Z, W}) ->
 lookup(Map, Coord) ->
     maps:get(Coord, Map, ?INACTIVE).
 
-get_neighbors(Map, Coord) ->
-    [lookup(Map, N) || N <- get_neighbor_coords(Coord)].
+get_neighbors(Map, NCoords) ->
+    [lookup(Map, N) || N <- NCoords].
 
-num_active_neighbors(Neighbors) ->
-    lists:sum(
-      lists:map(
-        fun(?ACTIVE) -> 1; (?INACTIVE) -> 0 end,
-        Neighbors)).
-
-count_active(Map) ->
-    num_active_neighbors(maps:values(Map)).
+count_active(Grid) when is_map(Grid) -> count_active(maps:values(Grid));
+count_active(Neighbors) when is_list(Neighbors) -> lists:sum(Neighbors).
 
 next_state_for_cube(Me, Neighbors) ->
-    case {Me, num_active_neighbors(Neighbors)} of
+    case {Me, count_active(Neighbors)} of
         {?ACTIVE, 2} -> ?ACTIVE;
         {?ACTIVE, 3} -> ?ACTIVE;
         {?ACTIVE, _} -> ?INACTIVE;
@@ -53,14 +47,15 @@ next_state_for_cube(Me, Neighbors) ->
         {?INACTIVE, _} -> ?INACTIVE
     end.
 
-expand_map(Start) ->
+expand_map(Start, Cache) ->
     lists:foldl(
-      fun (ListOfCoords, M) ->
-              NM = maps:from_list([{Coord, ?INACTIVE} || Coord <- ListOfCoords]),
-              maps:merge(M, NM)
+      fun(Coord, {Map, Cache2}) ->
+              {NCoords, NCache3} = n_cache(Cache2, Coord),
+              NM = maps:from_list([{C, ?INACTIVE} || C <- NCoords]),
+              {maps:merge(Map, NM), NCache3}
       end,
-      #{},
-      [get_neighbor_coords(Coord) || Coord <- maps:keys(Start)]).
+      {#{}, Cache},
+      maps:keys(Start)).
 
 n_cache(Map, Coord) ->
     case maps:get(Coord, Map, undefined) of
@@ -72,20 +67,20 @@ n_cache(Map, Coord) ->
     end.
 
 next_state({Start, N_Cache}) ->
-    Expanded = expand_map(Start),
+    {Expanded, N_Cache2} = expand_map(Start, N_Cache),
     lists:foldl(
-      fun(Coord, {Acc, N_Cache2}) ->
-              %% Get from cache and update
-              {NCoords, N_Cache3} = n_cache(N_Cache2, Coord),
+      fun(Coord, {Acc, N_Cache3}) ->
+              %% Get neighbors from cache and update
+              {NCoords, N_Cache4} = n_cache(N_Cache3, Coord),
 
               NextState = next_state_for_cube(
                             lookup(Start, Coord),
-                            [lookup(Start, N) || N <- NCoords]),
+                            get_neighbors(Start, NCoords)),
 
               {Acc#{Coord => NextState},
-               N_Cache3}
+               N_Cache4}
       end,
-      {Expanded, N_Cache},
+      {Expanded, N_Cache2},
       maps:keys(Expanded)).
 
 do_cycles(0, {Map, _}) -> Map;
