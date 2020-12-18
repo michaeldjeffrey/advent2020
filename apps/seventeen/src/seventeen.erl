@@ -7,12 +7,12 @@
 
 part1(InputType) ->
     Input = read_input(part1, InputType),
-    End = do_cycles(6, Input),
+    End = do_cycles(6, {Input, #{}}),
     count_active(End).
 
 part2(InputType) ->
     Input = read_input(part2, InputType),
-    End = do_cycles(6, Input),
+    End = do_cycles(6, {Input, #{}}),
     count_active(End).
 
 get_neighbor_coords({X, Y, Z}) ->
@@ -62,20 +62,35 @@ expand_map(Start) ->
       #{},
       [get_neighbor_coords(Coord) || Coord <- maps:keys(Start)]).
 
-next_state(Start) ->
+n_cache(Map, Coord) ->
+    case maps:get(Coord, Map, undefined) of
+        undefined ->
+            N = get_neighbor_coords(Coord),
+            {N, Map#{Coord => N}};
+        N ->
+            {N, Map}
+    end.
+
+next_state({Start, N_Cache}) ->
     Expanded = expand_map(Start),
     lists:foldl(
-      fun(Coord, Acc) ->
-              Neighbors = [lookup(Start, N) || N <- get_neighbor_coords(Coord)],
-              Me = lookup(Start, Coord),
-              maps:put(Coord, next_state_for_cube(Me, Neighbors), Acc)
+      fun(Coord, {Acc, N_Cache2}) ->
+              %% Get from cache and update
+              {NCoords, N_Cache3} = n_cache(N_Cache2, Coord),
+
+              NextState = next_state_for_cube(
+                            lookup(Start, Coord),
+                            [lookup(Start, N) || N <- NCoords]),
+
+              {Acc#{Coord => NextState},
+               N_Cache3}
       end,
-      Expanded,
+      {Expanded, N_Cache},
       maps:keys(Expanded)).
 
-do_cycles(0, Map) -> Map;
-do_cycles(N, Map) ->
-    do_cycles(N-1, next_state(Map)).
+do_cycles(0, {Map, _}) -> Map;
+do_cycles(N, Info) ->
+    do_cycles(N-1, next_state(Info)).
 
 read_input(Part, test) -> read_input(Part, <<".#.\n..#\n###">>);
 read_input(Part, main) -> read_input(Part, <<".#.#.#..\n..#....#\n#####..#\n#####..#\n#####..#\n###..#.#\n#..##.##\n#.#.####">>);
