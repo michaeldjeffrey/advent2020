@@ -13,16 +13,14 @@
 %%     SW       SE
 %%
 
-east({X, Y})      -> {X+1, Y}.
-southeast({X, Y}) -> {X, Y+1}.
-southwest({X, Y}) -> {X-1, Y+1}.
-west({X, Y})      -> {X-1, Y}.
-northeast({X, Y}) -> {X, Y-1}.
-northwest({X, Y}) -> {X-1, Y-1}.
+east({X, Y, Z})      -> {X+1, Y-1, Z  }.
+southeast({X, Y, Z}) -> {X,   Y-1, Z+1}.
+southwest({X, Y, Z}) -> {X-1, Y,   Z+1}.
+west({X, Y, Z})      -> {X-1, Y+1, Z  }.
+northeast({X, Y, Z}) -> {X+1, Y,   Z-1}.
+northwest({X, Y, Z}) -> {X,   Y+1, Z-1}.
 
-follow(Path) ->
-    io:format("Following: ~p~n", [Path]),
-    follow(Path, {0, 0}).
+follow(Path) -> follow(Path, {0, 0, 0}).
 
 follow([], Coord) -> Coord;
 follow("se" ++ Input, Coord) -> follow(Input, southeast(Coord));
@@ -55,13 +53,3 @@ flip(Coord, Map) ->
         white -> Map#{Coord => black};
         black -> Map#{Coord => white}
     end.
-
-
-
-test() ->
-    {4, 3} = east({3, 3}),
-    {3, 4} = southeast({3, 3}),
-    {2, 4} = southwest({3, 3}),
-    {2, 3} = west({3, 3}),
-    {3, 2} = northeast({3, 3}),
-    {2, 2} = northwest({3, 3}).
