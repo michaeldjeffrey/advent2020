@@ -2,6 +2,92 @@
 -compile(export_all).
 -export([]).
 
+part1(IT) ->
+    Input = input(IT),
+    count_colors(follow_paths(Input, #{})).
+
+part2(IT) ->
+    Input = input(IT),
+    Initial = follow_paths(Input, #{}),
+    {Time, Res} = time(fun tick_days/2, [100, Initial]),
+    io:format("All took ~pms~n", [Time]),
+    Res.
+
+time(F, Args) ->
+    Start = erlang:monotonic_time(millisecond),
+    Return = apply(F, Args),
+    Finish = erlang:monotonic_time(millisecond),
+    {Finish - Start, Return}.
+
+tick_days(0, Map) ->
+    count_colors(Map);
+tick_days(N, Map) ->
+    {Time, NextDay} = time(fun next_state/1, [Map]),
+    io:format("Day ~p took ~p ms~n", [N, Time]),
+    tick_days(N-1, NextDay).
+
+next_state(Start) ->
+    Expanded = expand_map(Start),
+    lists:foldl(
+      fun(Coord, Acc) ->
+              %% Get neighbors from cache and update
+              NCoords = get_neighbor_coords(Coord),
+
+              NextState = next_state_for_tile(
+                            lookup(Start, Coord),
+                            get_neighbors(Start, NCoords)),
+
+              Acc#{Coord => NextState}
+      end,
+      Expanded,
+      maps:keys(Expanded)).
+
+next_state_for_tile(Me, Neighbors) ->
+    {black, Num, white, _} = count_colors(Neighbors),
+    case {Me, Num} of
+        {black, N} when N > 2 -> white;
+        {black, 0} -> white;
+        {white, 2} -> black;
+        _ -> Me
+    end.
+
+expand_map(Start) ->
+    lists:foldl(
+      fun(Coord, Map) ->
+              NCoords = get_neighbor_coords(Coord),
+              NM = maps:from_list([{C, white} || C <- NCoords]),
+              maps:merge(Map, NM)
+      end,
+      #{},
+      maps:keys(Start)).
+
+follow_paths([], Map)->
+    Map;
+follow_paths([Path | Paths], Map) ->
+    follow_paths(Paths, flip(follow(Path), Map)).
+
+get_neighbor_coords(Coord) ->
+    NFuns = [fun east/1, fun southeast/1, fun southwest/1,
+             fun west/1, fun northeast/1, fun northwest/1],
+    [Neighbor(Coord) || Neighbor <- NFuns].
+
+lookup(Map, Coord) ->
+    maps:get(Coord, Map, white).
+
+get_neighbors(Map, NCoords) ->
+    [lookup(Map, N) || N <- NCoords].
+
+flip(Coord, Map) ->
+    case lookup(Map, Coord) of
+        white -> Map#{Coord => black};
+        black -> Map#{Coord => white}
+    end.
+
+count_colors(Map) when is_map(Map)->
+    count_colors(maps:values(Map));
+count_colors(Tiles) ->
+    {Black, White} = lists:partition(fun(T) -> T == black end, Tiles),
+    {black, length(Black), white, length(White)}.
 
 %% e, se, sw, w, nw, and ne
 
@@ -36,20 +122,3 @@ input(Filename) ->
     {ok, Data} = file:read_file(Filename),
     L = unicode:characters_to_list(Data),
     string:lexemes(L, "\n").
-
-part1(IT) ->
-    Input = input(IT),
-    go(Input, #{}).
-
-go([], Map)->
-    Tiles = maps:values(Map),
-    {Black, White} = lists:partition(fun(T) -> T == black end, Tiles),
-    {black, length(Black), white, length(White)};
-go([Path | Paths], Map) ->
-    go(Paths, flip(follow(Path), Map)).
-
-flip(Coord, Map) ->
-    case maps:get(Coord, Map, white) of
-        white -> Map#{Coord => black};
-        black -> Map#{Coord => white}
-    end.
